@@ -1,0 +1,3 @@
+[submodule "themes/concise"]
+	path = themes/concise
+	url = https://github.com/kingofctrl/hexo-theme-concise
