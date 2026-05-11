@@ -217,7 +217,7 @@
       
       <a class="index-excerpt index-excerpt__noimg" href="/2025/01/10/distributed-system-gfs/" target="_self">
         <div>
-          简介2003 年 Google 在 SOSP 上发表了 The Google File System 这篇论文，后来基本成了分布式文件系统的标配引用。它的设计思路其实很务实，没有太多炫技的地方，但每个决策都有明确的理由支撑。 最近看了一个 C++ 实现的开源 GFS 项目（GFS_cpp，bazel + gRPC + leveldb），对照论文一起读理解会深很多。这篇文章就当是学习笔记。  一
+          GFS（Google File System）的架构设计与实现解析。从 64MB chunk 的设计考量到单 Master 如何不成为瓶颈，从租约机制与流水线写入到一致性模型的取舍。结合开源项目 GFS_cpp 的真实代码，展示分布式文件系统的核心设计思路。
         </div>
       </a>
 
