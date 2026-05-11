@@ -1,0 +1,40 @@
+# Fluid theme config
+# See full options: https://hexo.fluid-dev.com/docs/
+
+# 导航栏
+navbar:
+  blog_title: "学习Agents"
+  menu:
+    - name: 首页
+      url: /
+    - name: 归档
+      url: /archives/
+    - name: 分类
+      url: /categories/
+    - name: 标签
+      url: /tags/
+    - name: 关于
+      url: /about/
+
+# 首页横幅
+index:
+  banner_img: /img/banner.png
+  banner_img_height: 80
+  slogan:
+    enable: true
+    text: 从零开始，探索AI Agent的奥秘
+
+# 文章页
+post:
+  banner_img: /img/banner.png
+  banner_img_height: 50
+  show_toc: true
+
+# 关于页
+about:
+  banner_img: /img/banner.png
+  banner_img_height: 50
+
+# 页脚
+footer:
+  content: '<a href="https://github.com/Liangxia6">Liangxia6</a> | 学习Agents'

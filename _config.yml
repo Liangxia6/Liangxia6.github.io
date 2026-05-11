@@ -1,0 +1,128 @@
+# Hexo Configuration
+## Docs: https://hexo.io/docs/configuration.html
+## Source: https://github.com/hexojs/hexo/
+
+# Site
+title: 学习Agents
+subtitle: '一个计算机学生的Agent探索之旅'
+description: '从零开始学习AI Agent架构、ReAct循环、工具调用。记录学习历程与心得。'
+keywords: [Agent, AI, LLM, ReAct, Hermes, 人工智能, 学习笔记]
+author: Liangxia6
+language: zh-CN
+timezone: Asia/Shanghai
+
+# URL
+url: https://Liangxia6.github.io
+permalink: :year/:month/:day/:title/
+permalink_defaults:
+pretty_urls:
+  trailing_index: true
+  trailing_html: true
+
+# Directory
+source_dir: source
+public_dir: public
+tag_dir: tags
+archive_dir: archives
+category_dir: categories
+code_dir: downloads/code
+i18n_dir: :lang
+skip_render:
+
+# Writing
+new_post_name: :title.md
+default_layout: post
+titlecase: false
+external_link:
+  enable: true
+  field: site
+  exclude: ''
+filename_case: 0
+render_drafts: false
+post_asset_folder: false
+relative_link: false
+future: true
+syntax_highlighter: highlight.js
+highlight:
+  line_number: true
+  auto_detect: false
+  tab_replace: ''
+  wrap: true
+  hljs: false
+prismjs:
+  preprocess: true
+  line_number: true
+  tab_replace: ''
+
+# Home page setting
+index_generator:
+  path: ''
+  per_page: 10
+  order_by: -date
+
+# Category & Tag
+default_category: uncategorized
+category_map:
+tag_map:
+
+# Metadata elements
+meta_generator: true
+
+# Date / Time format
+date_format: YYYY-MM-DD
+time_format: HH:mm:ss
+updated_option: 'mtime'
+
+# Pagination
+per_page: 10
+pagination_dir: page
+
+# Include / Exclude file(s)
+include:
+exclude:
+ignore:
+
+# Extensions
+theme: fluid
+
+# Fluid theme config
+fluid_config:
+  # 导航栏
+  navbar:
+    blog_title: "学习Agents"
+    menu:
+      - name: 首页
+        url: /
+      - name: 归档
+        url: /archives/
+      - name: 分类
+        url: /categories/
+      - name: 标签
+        url: /tags/
+      - name: 关于
+        url: /about/
+
+  # 首页
+  index:
+    banner_img: /img/default.png
+    banner_img_height: 60
+    slogan:
+      enable: true
+      text: 从零开始，探索AI Agent的奥秘
+
+  # 文章
+  post:
+    banner_img: /img/default.png
+    banner_img_height: 40
+    show_toc: true
+
+  # 关于页
+  about:
+    banner_img: /img/default.png
+    banner_img_height: 40
+
+# Deployment
+deploy:
+  type: git
+  repo: https://github.com/Liangxia6/Liangxia6.github.io.git
+  branch: main
