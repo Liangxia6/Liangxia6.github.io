@@ -1,0 +1,889 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/logo.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Liangxia6">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="简介2014 年 Diego Ongaro 和 John Ousterhout 在 USENIX ATC 发表了 Raft 的完整论文《In Search of an Understandable Consensus Algorithm》。这篇论文的标题本身就点明了它的核心动机——“寻找一种可理解的共识算法”。在此之前，共识算法领域长期被 Paxos 统治，而 Paxos 以”难以理解”著称，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Raft 共识算法：从算法原理到 etcd 实现">
+<meta property="og:url" content="https://liangxia6.github.io/2025/02/08/3_Raft/index.html">
+<meta property="og:site_name" content="Liangxia的博客">
+<meta property="og:description" content="简介2014 年 Diego Ongaro 和 John Ousterhout 在 USENIX ATC 发表了 Raft 的完整论文《In Search of an Understandable Consensus Algorithm》。这篇论文的标题本身就点明了它的核心动机——“寻找一种可理解的共识算法”。在此之前，共识算法领域长期被 Paxos 统治，而 Paxos 以”难以理解”著称，">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://liangxia6.github.io/images/%E5%A4%8D%E5%88%B6%E7%8A%B6%E6%80%81%E6%9C%BA%E6%A8%A1%E5%9E%8B.png">
+<meta property="og:image" content="https://liangxia6.github.io/images/%E8%8A%82%E7%82%B9%E7%8A%B6%E6%80%81%E5%8F%98%E5%8C%96.png">
+<meta property="og:image" content="https://liangxia6.github.io/images/raft%E7%8A%B6%E6%80%81%E6%9C%BA%E8%AF%B4%E6%98%8E.jpg">
+<meta property="og:image" content="https://liangxia6.github.io/images/%E4%BB%BB%E6%9C%9Fterm.png">
+<meta property="og:image" content="https://liangxia6.github.io/images/%E5%A4%9A%E6%95%B0%E6%8A%95%E7%A5%A8%E8%A7%84%E5%88%99.png">
+<meta property="og:image" content="https://liangxia6.github.io/images/leader%E9%80%89%E4%B8%BE%E8%AF%B4%E6%98%8E.png">
+<meta property="og:image" content="https://liangxia6.github.io/images/%E8%8A%82%E7%82%B9%E7%9A%84%E6%97%A5%E5%BF%97.png">
+<meta property="og:image" content="https://liangxia6.github.io/images/%E6%97%A5%E5%BF%97%E5%90%8C%E6%AD%A5%E8%AF%B4%E6%98%8E.png">
+<meta property="og:image" content="https://liangxia6.github.io/images/%E5%8D%95%E8%8A%82%E7%82%B9%E6%88%90%E5%91%98%E5%8F%98%E6%9B%B4.png">
+<meta property="og:image" content="https://liangxia6.github.io/images/%E6%97%A5%E5%BF%97%E5%8E%8B%E7%BC%A9.png">
+<meta property="og:image" content="https://liangxia6.github.io/images/etcd%E6%9E%B6%E6%9E%84.png">
+<meta property="og:image" content="https://liangxia6.github.io/images/etcd%E6%9E%B6%E6%9E%84%E4%BB%A5%E5%8F%8A%E6%B5%81%E7%A8%8B.png">
+<meta property="article:published_time" content="2025-02-07T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-13T14:17:46.592Z">
+<meta property="article:author" content="Liangxia6">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://liangxia6.github.io/images/%E5%A4%8D%E5%88%B6%E7%8A%B6%E6%80%81%E6%9C%BA%E6%A8%A1%E5%9E%8B.png">
+  
+  
+  
+  <title>Raft 共识算法：从算法原理到 etcd 实现 - Liangxia的博客</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1736178_k526ubmyhba.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"liangxia6.github.io","root":"/","version":"1.9.9","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"expand_all":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"openkounter":{"server_url":"https://open-kounter.mintimate.cn","path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 8.1.2"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 50vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>Liangxia的博客</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content (desktop) -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile grid menu overlay -->
+<div id="mobile-grid-menu" class="d-lg-none">
+  <div class="mobile-grid-menu-inner">
+    <div class="container">
+      <div class="row">
+        
+          
+          
+          
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-search-btn">
+            <a href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-search"></i>
+                <span>搜索</span>
+              </div>
+            </a>
+          </div>
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-color-toggle-btn"
+               data-label-light="开灯"
+               data-label-dark="关灯">
+            <a href="javascript:;" aria-label="Color Toggle">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-dark" id="mobile-color-toggle-icon"></i>
+                <span id="mobile-color-toggle-label">关灯</span>
+              </div>
+            </a>
+          </div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/banner.svg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="Raft 共识算法：从算法原理到 etcd 实现"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2025-02-08 00:00" pubdate>
+          2025年2月8日 凌晨
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          13k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          109 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">Raft 共识算法：从算法原理到 etcd 实现</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <span id="more"></span>
+
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>2014 年 Diego Ongaro 和 John Ousterhout 在 USENIX ATC 发表了 Raft 的完整论文《In Search of an Understandable Consensus Algorithm》。这篇论文的标题本身就点明了它的核心动机——“寻找一种可理解的共识算法”。在此之前，共识算法领域长期被 Paxos 统治，而 Paxos 以”难以理解”著称，从论文到正确实现之间存在巨大的鸿沟。</p>
+<p>Raft 的设计哲学是”分而治之”：把共识问题拆解为三个相对独立的子问题——<strong>Leader 选举</strong>、<strong>日志复制</strong>、<strong>安全性保障</strong>。每个子问题都有清晰的约束和边界，这让整个算法的推理和实现都变得可控。论文中明确写道：”We believe the primary problem with Paxos is that it is not understandable, even for the single-decree version. The goal of Raft is to present a consensus algorithm that is significantly easier to understand than Paxos.”</p>
+<p>这篇文章从论文出发，结合 etcd 的工程实现，逐层拆解 Raft 的核心机制。我们不仅讨论”Raft 是怎么做的”，更重要的是”为什么这么设计是正确的”。</p>
+<hr>
+<h2 id="一、为什么需要共识算法"><a href="#一、为什么需要共识算法" class="headerlink" title="一、为什么需要共识算法"></a>一、为什么需要共识算法</h2><h3 id="分布式系统的核心问题"><a href="#分布式系统的核心问题" class="headerlink" title="分布式系统的核心问题"></a>分布式系统的核心问题</h3><p>共识算法解决的是分布式系统中最根本的问题：<strong>让一组机器即使在部分节点故障的情况下，仍能对外表现为一个一致的、可靠的单一系统</strong>。这个问题在形式化描述中对应”状态机复制”（State Machine Replication）——如果所有节点以相同的顺序执行相同的命令序列，它们就会到达相同的最终状态。</p>
+<p><img src="/images/%E5%A4%8D%E5%88%B6%E7%8A%B6%E6%80%81%E6%9C%BA%E6%A8%A1%E5%9E%8B.png" srcset="/img/loading.gif" lazyload alt="复制状态机模型"></p>
+<p>状态机复制模型包含三个核心组件：每个节点维护一份相同的日志（Log），日志中的每一条记录代表一个需要应用到状态机的命令。共识算法保证所有节点的日志内容与顺序完全一致，这样每个节点独立地将日志中的命令按序应用到状态机，最终所有节点到达相同的状态。</p>
+<p>一个值得注意的理论背景是 FLP 不可能性结论（Fischer, Lynch, Paterson, 1985）：在纯异步环境中，即使只有一个节点可能故障，也不存在一个确定性的共识算法能在有限时间内达成共识。实践中通过引入”部分同步”假设（网络延迟有界但不固定、节点最终会响应）来绕开 FLP 限制，这正是 Raft 所依赖的模型。Raft 不做任何关于网络延迟的确定性假设，而是通过随机化超时机制来处理不确定性。</p>
+<h3 id="Paxos-的困境与-Raft-的诞生"><a href="#Paxos-的困境与-Raft-的诞生" class="headerlink" title="Paxos 的困境与 Raft 的诞生"></a>Paxos 的困境与 Raft 的诞生</h3><p>Leslie Lamport 在 1989 年提出的 Paxos 是共识算法的理论基础，但它的声誉两极分化——理论上优美，实践中却以”难以理解”著称。Lamport 在 2001 年发表的《Paxos Made Simple》开篇就承认了这个问题：”The Paxos algorithm, when presented in plain English, is very simple.” 然而这句自嘲式的开场白恰恰说明了问题——大量工程师和研究者发现，从”读懂了论文”到”正确实现一个 Paxos 系统”之间存在巨大的鸿沟。</p>
+<p>Paxos 的难点集中在几个方面：</p>
+<ul>
+<li><strong>Single-decree Paxos 仅解决单个值的共识</strong>，而工业界真正需要的是 Multi-Paxos（对一系列值达成共识）。Multi-Paxos 的细节——Leader 选举、日志连续性、成员变更——在原始论文中并未给出完整规范。</li>
+<li><strong>各实现在关键细节上各有不同</strong>。Google 的 Chubby、雅虎的 Zookeeper（使用 Zab）、Microsoft 的 PacificA 各有自己的 Multi-Paxos 变体，缺乏统一标准。</li>
+<li><strong>“未定义行为”太多</strong>。Paxos 论文留下大量实现决策空间，导致不同实现之间的行为差异可能引入微妙的正确性问题。</li>
+</ul>
+<p>Raft 的应对策略简单而有效：<strong>把所有决策都显式化、约束化</strong>，让实现者不需要在”未定义行为”上做主观判断。论文中的 Figure 2 直接给出了 Raft 共识模块的完整伪代码规范——每个 RPC 的精确处理逻辑、每个状态的转换条件、每个持久化变量的更新时机，全都有明确的定义。</p>
+<hr>
+<h2 id="二、Raft-基础：角色与任期"><a href="#二、Raft-基础：角色与任期" class="headerlink" title="二、Raft 基础：角色与任期"></a>二、Raft 基础：角色与任期</h2><h3 id="三种角色与角色转换"><a href="#三种角色与角色转换" class="headerlink" title="三种角色与角色转换"></a>三种角色与角色转换</h3><p>Raft 集群中每个节点在同一时刻处于三种角色之一：<strong>Leader</strong>、<strong>Follower</strong>、<strong>Candidate</strong>。这个角色状态机的设计是 Raft 区别于 Multi-Paxos 的核心特征之一。</p>
+<p><img src="/images/%E8%8A%82%E7%82%B9%E7%8A%B6%E6%80%81%E5%8F%98%E5%8C%96.png" srcset="/img/loading.gif" lazyload alt="节点状态变化"></p>
+<p>角色之间的转换由两个超时计时器驱动：</p>
+<ul>
+<li><strong>Election timeout</strong>：Follower 在此时间内未收到 Leader 的心跳，则转为 Candidate 并发起选举。</li>
+<li><strong>Heartbeat timeout</strong>：Leader 定期向所有 Follower 发送心跳（空的 AppendEntries RPC），维持权威并阻止新的选举。</li>
+</ul>
+<p>转换规则非常简洁：Follower 超时 → Candidate（发起选举）；Candidate 赢得多数票 → Leader；Leader 或 Candidate 发现更高任期 → 降级为 Follower。</p>
+<p>这种显式的角色状态机是一个重要的设计选择。Multi-Paxos 中 Leader 的概念是隐式的——节点通过执行 Phase 1（Prepare&#x2F;Promise）后自然获得提议权，没有独立的”Leader 选举”阶段。而 Raft 将 Leader 身份作为一等概念，赋予其日志复制的唯一权限：<strong>只有 Leader 可以发起 AppendEntries，Follower 永远被动接受</strong>。这一设计简化了日志复制中的冲突处理——不存在两个节点同时尝试写入同一日志位置的情况。</p>
+<p><img src="/images/raft%E7%8A%B6%E6%80%81%E6%9C%BA%E8%AF%B4%E6%98%8E.jpg" srcset="/img/loading.gif" lazyload alt="raft 状态机"></p>
+<h3 id="任期（Term）"><a href="#任期（Term）" class="headerlink" title="任期（Term）"></a>任期（Term）</h3><p>Term 是 Raft 中的逻辑时钟，全局单调递增。每个 Term 最多有一个 Leader；如果某次选举未能选出有效 Leader（split vote），该 Term 以无 Leader 结束，节点增加 term 号后重新选举。</p>
+<p><img src="/images/%E4%BB%BB%E6%9C%9Fterm.png" srcset="/img/loading.gif" lazyload alt="任期 Term"></p>
+<p>Term 出现在 Raft 的几乎所有 RPC 中，它承担着”逻辑时钟”和”权威凭证”的双重角色：</p>
+<ol>
+<li><strong>收到更高 term 的消息时</strong>：节点必须立即更新自己的 <code>currentTerm</code> 并转为 Follower。无论当前是 Leader 还是 Candidate，更高的 term 意味着”有人比我更新、更有资格领导集群”。</li>
+<li><strong>收到更低 term 的消息时</strong>：直接拒绝。这保证了过期的 Leader 无法继续在集群中”捣乱”——旧 term 的 Leader 发出的 AppendEntries 会被新 term 的节点直接拒绝，迫使它迅速意识到自己已经不再是 Leader。</li>
+</ol>
+<p>每个节点持久化自己的 <code>currentTerm</code> 和 <code>votedFor</code>（在 term 内投给了谁），确保宕机重启后不会在同一 term 内重复投票。</p>
+<hr>
+<h2 id="三、Leader-选举"><a href="#三、Leader-选举" class="headerlink" title="三、Leader 选举"></a>三、Leader 选举</h2><h3 id="选举触发与超时机制"><a href="#选举触发与超时机制" class="headerlink" title="选举触发与超时机制"></a>选举触发与超时机制</h3><p>每个节点维护一个随机化的 election timeout，论文推荐的区间是 150ms-300ms。当 Follower 在 timeout 内未收到有效心跳（AppendEntries RPC），它采取以下步骤：</p>
+<ol>
+<li>递增 <code>currentTerm</code></li>
+<li>将自己设为 Candidate</li>
+<li>投票给自己</li>
+<li>重置 election timeout</li>
+<li>并行向所有其他节点发送 RequestVote RPC</li>
+</ol>
+<p><strong>随机化超时是 Raft 选举机制的精华所在</strong>。如果所有节点的超时相同，split vote 几乎必然发生——所有 Follower 同时超时、同时参选、各自投票给自己、无人达到多数。随机化让”恰好有一个节点率先超时并收集到多数票”的概率大幅提高。而且每个节点在每次选举前重新随机化超时值，即使前一轮发生了 split vote，下一轮不同节点率先超时的可能性也很大。</p>
+<h3 id="投票规则与-RequestVote"><a href="#投票规则与-RequestVote" class="headerlink" title="投票规则与 RequestVote"></a>投票规则与 RequestVote</h3><p>Candidate 的 RequestVote 请求携带两个关键字段：<code>term</code>（Candidate 的当前任期号）和 <code>lastLogIndex</code>&#x2F;<code>lastLogTerm</code>（Candidate 最后一条日志条目的索引和任期）。接收方（Follower）根据以下条件决定是否投票：</p>
+<ol>
+<li><strong>Candidate 的 term 必须 &gt;&#x3D; 自己的 currentTerm</strong>。如果请求的 term 更低，说明这是一个过期的 Candidate，直接拒绝。</li>
+<li><strong>自己在该 term 中尚未投过票</strong>（<code>votedFor</code> 为 null 或已投给该 Candidate）。每个节点在每个 term 中最多投一票，这保证了每个 term 最多选出一个 Leader。</li>
+<li><strong>Candidate 的日志至少和自己一样”新”</strong>。比较规则：先比较最后日志条目的 term，term 更大的更”新”；若 term 相同则比较 index，index 更大的更”新”。</li>
+</ol>
+<p><img src="/images/%E5%A4%9A%E6%95%B0%E6%8A%95%E7%A5%A8%E8%A7%84%E5%88%99.png" srcset="/img/loading.gif" lazyload alt="多数投票规则"></p>
+<p><strong>第三条”日志新度比较”是 Raft 安全性保障的第一道防线</strong>。它确保只有日志足够”完整”的节点才能成为 Leader——一个日志落后的节点即使率先超时，也必须获得所有包含完整日志的节点的投票才可能成功。如果大多数节点持有完整日志，日志落后的节点就无法获得多数票。这条规则直接保证了 Leader Completeness Property（后文会详细讨论）。</p>
+<h3 id="选举过程详解"><a href="#选举过程详解" class="headerlink" title="选举过程详解"></a>选举过程详解</h3><p>Candidate 进入选举状态后有三种可能结果：</p>
+<ul>
+<li><strong>赢得选举</strong>：收到多数节点的投票（包括自己投给自己的那一票）。立即转为 Leader，并向所有节点发送心跳 AppendEntries 以确立权威、阻止新的选举。心跳消息携带当前 term，收到心跳的节点如果 term 不大于自己的 term，就知道已经有合法的 Leader 了。</li>
+<li><strong>收到更高 term 的消息</strong>：说明另一节点已当选 Leader。Candidate 接受现实，降级为 Follower，更新 <code>currentTerm</code>。</li>
+<li><strong>超时未决出胜负</strong>：split vote 发生。Candidate 递增 term，重新随机化 election timeout，发起新一轮选举。</li>
+</ul>
+<p><img src="/images/leader%E9%80%89%E4%B8%BE%E8%AF%B4%E6%98%8E.png" srcset="/img/loading.gif" lazyload alt="Leader 选举"></p>
+<p>Split vote 场景下，如果有多于一个节点随机到相近的选举超时，它们可能几乎同时发起选举，互相瓜分选票。此时没有任何 Candidate 能达到多数，各自超时后增加 term 重试。随机化超时 + 独立重试让 split vote 的概率以指数级下降——论文中的实验数据表明，在 5 节点集群中，split vote 的平均间隔远超实际系统的运行周期。</p>
+<hr>
+<h2 id="四、日志复制"><a href="#四、日志复制" class="headerlink" title="四、日志复制"></a>四、日志复制</h2><h3 id="AppendEntries：Raft-的”万能-RPC”"><a href="#AppendEntries：Raft-的”万能-RPC”" class="headerlink" title="AppendEntries：Raft 的”万能 RPC”"></a>AppendEntries：Raft 的”万能 RPC”</h3><p>AppendEntries 在 Raft 中承担双重角色：作为<strong>心跳</strong>维持 Leader 权威，作为<strong>日志复制载体</strong>传播新的命令。这种”一个 RPC 做两件事”的设计简化了实现——不需要独立的心跳协议——但也要求接收方仔细区分”空心跳”（<code>Entries</code> 为空）和”携带日志条目”两种情况。</p>
+<p>Leader 为每个 Follower 维护两个关键索引：</p>
+<ul>
+<li><strong>nextIndex</strong>：下一条要发送给该 Follower 的日志索引。初始值为 Leader 最后一条日志 index + 1。</li>
+<li><strong>matchIndex</strong>：已确认该 Follower 复制的最高日志索引。初始值为 0。</li>
+</ul>
+<p>每次 AppendEntries 调用携带从 <code>nextIndex</code> 开始的一批日志条目。当 Follower 成功复制后，Leader 更新该 Follower 的 <code>matchIndex</code> 和 <code>nextIndex</code>。当一条日志被复制到多数节点（即多数 Follower 的 <code>matchIndex &gt;= 该日志的 index</code>），Leader 将该日志的 <code>commitIndex</code> 推进，表示它已”提交”。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs go"><span class="hljs-comment">// AppendEntries RPC 请求的核心字段</span><br><span class="hljs-keyword">type</span> AppendEntriesArgs <span class="hljs-keyword">struct</span> &#123;<br>    Term         <span class="hljs-type">int</span>        <span class="hljs-comment">// Leader 的当前 term</span><br>    LeaderId     <span class="hljs-type">int</span>        <span class="hljs-comment">// 用于客户端重定向</span><br>    PrevLogIndex <span class="hljs-type">int</span>        <span class="hljs-comment">// 新日志条目前一条的 index</span><br>    PrevLogTerm  <span class="hljs-type">int</span>        <span class="hljs-comment">// 新日志条目前一条的 term</span><br>    Entries      []LogEntry <span class="hljs-comment">// 日志条目（心跳时为空）</span><br>    LeaderCommit <span class="hljs-type">int</span>        <span class="hljs-comment">// Leader 的 commitIndex</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><code>PrevLogIndex</code> 和 <code>PrevLogTerm</code> 构成了 Raft 日志复制的”一致性检查”锚点。Follower 收到 AppendEntries 后，先在自己的日志中查找 index &#x3D;&#x3D; <code>PrevLogIndex</code> 且 term &#x3D;&#x3D; <code>PrevLogTerm</code> 的条目。只有检查通过，Follower 才接受本次 AppendEntries 携带的新条目。如果检查失败——比如 Follower 在该索引位置有不同 term 的日志（说明日志冲突）——Follower 返回 false，Leader 收到失败响应后递减该 Follower 的 <code>nextIndex</code> 并重试，逐步找到双方日志一致的位置。</p>
+<h3 id="日志匹配性质"><a href="#日志匹配性质" class="headerlink" title="日志匹配性质"></a>日志匹配性质</h3><p>Raft 的日志设计遵循两个核心不变式，论文称之为 Log Matching Property：</p>
+<ol>
+<li><strong>如果两个日志条目有相同的 index 和 term，则它们存储相同的命令。</strong></li>
+<li><strong>如果两个日志条目有相同的 index 和 term，则它们之前的所有日志条目都完全相同。</strong></li>
+</ol>
+<p><img src="/images/%E8%8A%82%E7%82%B9%E7%9A%84%E6%97%A5%E5%BF%97.png" srcset="/img/loading.gif" lazyload alt="节点的日志"></p>
+<p>这两个性质由 Raft 的日志写入机制直接保证：</p>
+<ul>
+<li><strong>性质 1 的保证</strong>：Leader 在给定 index 和 term 最多创建一条日志条目；且日志条目一旦创建就不会被修改。</li>
+<li><strong>性质 2 的保证</strong>：AppendEntries 的一致性检查（<code>PrevLogIndex</code>&#x2F;<code>PrevLogTerm</code> 匹配）确保新条目被追加到完全匹配的前序日志之后。如果前序日志不匹配，Follower 会拒绝接受新条目。</li>
+</ul>
+<p>任何冲突（同一 index 不同 term）都会被覆盖。当 Leader 发现 Follower 的日志在某处与自己的不一致时，Leader 回退 <code>nextIndex</code> 直到找到匹配点，然后 Follower 删除冲突位置之后的所有日志，用 Leader 发送的日志条目替换。这个过程保证了 Follower 的日志最终收敛到与 Leader 完全一致。</p>
+<p><img src="/images/%E6%97%A5%E5%BF%97%E5%90%8C%E6%AD%A5%E8%AF%B4%E6%98%8E.png" srcset="/img/loading.gif" lazyload alt="日志同步说明"></p>
+<h3 id="日志的提交与应用"><a href="#日志的提交与应用" class="headerlink" title="日志的提交与应用"></a>日志的提交与应用</h3><p>Raft 严格区分两个概念：日志被”<strong>复制</strong>“到多数节点，和日志被”<strong>提交</strong>“（committed）。一条日志被提交的条件是：</p>
+<ol>
+<li>它被复制到了多数节点的日志中；</li>
+<li>它的 term 就是当前 Leader 的 term。</li>
+</ol>
+<p>条件 2 是一个关键的约束。论文 Figure 8 揭示了一个微妙的陷阱：Leader 不能直接提交之前 term 的日志条目，只能通过提交当前 term 的一条新日志来间接提交历史日志。原因在于可能存在这样的场景——之前 term 的一条已被”间接复制到多数节点”的日志，在新 Leader 当选后被覆盖。</p>
+<p>这个场景是 Raft 论文中最精巧的论证，我们将在下一章详细拆解。解决方案是：<strong>Leader 只通过在当前 term 提交一条日志来间接确认之前 term 的未提交日志</strong>。一旦当前 term 的日志被提交，所有之前未提交的日志也一并变得安全——因为任何未来的 Leader 在选举阶段都必须拥有那条当前 term 的日志（它已存在于多数节点），而包含该日志的日志前缀自然也包括了之前那些未提交的日志。</p>
+<hr>
+<h2 id="五、安全性"><a href="#五、安全性" class="headerlink" title="五、安全性"></a>五、安全性</h2><h3 id="选举限制：日志必须足够新"><a href="#选举限制：日志必须足够新" class="headerlink" title="选举限制：日志必须足够新"></a>选举限制：日志必须足够新</h3><p>Leader 选举阶段的”日志新度比较”规则是对 Leader 日志完备性的第一层保障。这条规则确保只有持有所有已提交日志的节点才能成为 Leader。Raft 将此称为 <strong>Leader Completeness Property</strong>——一旦一条日志条目在某个 term 被提交，所有未来 term 的 Leader 都必须包含该条目。</p>
+<p>证明思路简洁而优雅：</p>
+<ul>
+<li>一条日志被提交，意味着在 term T 中它存在于多数节点的日志中。</li>
+<li>一个节点要赢得 term U（U &gt; T）的选举，必须获得多数节点的投票。</li>
+<li>这两个”多数”集合必然有交集——至少有一个节点同时持有已提交日志且投票给了当选的 Candidate。</li>
+<li>根据 RequestVote 的投票规则，投票者只有在 Candidate 的日志至少和它自己一样”新”时才会投票。</li>
+<li>因此当选的 Candidate 的日志必须包含那条已提交日志。</li>
+</ul>
+<p>这个论证的关键在于”两个多数集合必然相交”——这是多数投票规则的性质，与具体哪些节点投票无关。正是这个简洁的集合论论证，使得 Raft 的安全性证明比 Paxos 的证明直观得多。Lamport 为 Paxos 给出的安全性证明依赖归纳法和复杂的谓词逻辑；而 Raft 的安全性证明可以从”多数集合必相交”这个基本事实直接推导。</p>
+<h3 id="提交前一项-term-日志的安全性"><a href="#提交前一项-term-日志的安全性" class="headerlink" title="提交前一项 term 日志的安全性"></a>提交前一项 term 日志的安全性</h3><p>论文 Section 5.4.2 围绕 Figure 8 展开的论证，是全篇最精巧的部分。我们详细重现这个场景：</p>
+<ul>
+<li><strong>(a)</strong> S1 是 Leader，在 index&#x3D;2 处创建了一条日志（term&#x3D;2）。S1 将这条日志复制到了 S2。</li>
+<li><strong>(b)</strong> S1 宕机。S5 赢得了选举（term&#x3D;3，获得 S3、S4、S5 的票），在 index&#x3D;2 处写入了一条<strong>不同 term</strong> 的日志（term&#x3D;3），覆盖了原来的位置。</li>
+<li><strong>(c)</strong> S5 宕机。S1 重新成为 Leader（term&#x3D;4），将自己的 index&#x3D;2（term&#x3D;2）的日志复制到了 S2 和 S3，此时 index&#x3D;2（term&#x3D;2）的日志已经在 S1、S2、S3 三个节点上——构成了多数。</li>
+</ul>
+<p><strong>风险点</strong>：如果此时 S1 将 index&#x3D;2（term&#x3D;2）提交并应用到状态机，然后 S1 宕机，S5 可能再次当选（因为它和 S4 上的 term&#x3D;3 日志在日志新度比较中”更新”于其他节点），S5 会用自己在 index&#x3D;2 处的日志（term&#x3D;3）覆盖 S1 已提交的日志。这违反了 Leader Completeness——一条已提交的日志被新 Leader 覆盖了。</p>
+<p><strong>Raft 的解决方案</strong>：Leader 只能通过提交当前 term 的日志来间接提交历史日志。在 Figure 8 的 (d) 中，S1 作为 term&#x3D;4 的 Leader，创建了 index&#x3D;3（term&#x3D;4）的新日志并将其复制到多数节点。只有当 index&#x3D;3（term&#x3D;4）的日志被提交后，S1 才能确认 index&#x3D;2（term&#x3D;2）也是安全的。到了 (e)，任何未来的 Leader 在选举阶段都必须包含 index&#x3D;3（term&#x3D;4）的日志（因为它已经存在于多数节点），而包含 index&#x3D;3 的日志前缀自然也包含了 index&#x3D;2。</p>
+<p>这个设计让 “term 边界” 成为天然的提交边界——跨 term 的未提交日志不会积累出安全性问题，因为只有当前 term 有新日志被提交时，之前 term 的日志才”顺便”变得安全。</p>
+<h3 id="状态机安全性"><a href="#状态机安全性" class="headerlink" title="状态机安全性"></a>状态机安全性</h3><p>状态机安全性要求所有节点以相同的顺序应用相同的日志命令集。Raft 通过 Leader 的”日志权威性”来保证这一点：</p>
+<ul>
+<li><strong>Leader 在自己的日志中只追加、不删除、不覆盖</strong>。每一条日志都由 Leader 在某个 term 和 index 下唯一创建。</li>
+<li><strong>Follower 通过 AppendEntries 的一致性检查强制与 Leader 保持一致</strong>。如果 Follower 的日志在某处与 Leader 分叉，冲突位置之后的所有日志被删除，用 Leader 的日志替换。</li>
+<li>因此只要 Leader 的日志序列正确，所有 Follower 最终都会收敛到完全相同的日志序列，状态机在每个节点上按相同的顺序应用相同的命令，输出自然一致。</li>
+</ul>
+<hr>
+<h2 id="六、集群成员变更"><a href="#六、集群成员变更" class="headerlink" title="六、集群成员变更"></a>六、集群成员变更</h2><h3 id="单步变更的风险"><a href="#单步变更的风险" class="headerlink" title="单步变更的风险"></a>单步变更的风险</h3><p>集群成员从 {A, B, C} 变为 {A, B, C, D, E} 不能”一步到位”。核心问题在于：在变更过渡期，新旧两个配置可能各自形成多数。</p>
+<p><img src="/images/%E5%8D%95%E8%8A%82%E7%82%B9%E6%88%90%E5%91%98%E5%8F%98%E6%9B%B4.png" srcset="/img/loading.gif" lazyload alt="单节点成员变更"></p>
+<p>旧配置 {A, B, C} 的多数是 2 个节点，新配置 {A, B, C, D, E} 的多数是 3 个节点。如果在某时刻，A 和 B 使用的是旧配置，而 C、D、E 已切换到新配置，那么 A+B（2 票）在旧配置中构成多数，C+D+E（3 票）在新配置中也构成多数。两个”多数”可能在同一 term 内分别选出不同的 Leader，导致脑裂（split brain）。</p>
+<p>这是成员变更中经典的”双多数”问题——单步原子切换配置的幻觉是危险的，因为分布式系统中各节点切换配置的时刻不可能完全同步。</p>
+<h3 id="联合共识（Joint-Consensus）"><a href="#联合共识（Joint-Consensus）" class="headerlink" title="联合共识（Joint Consensus）"></a>联合共识（Joint Consensus）</h3><p>Raft 的解决方案是两阶段成员变更（Joint Consensus），论文 Section 6 给出了完整协议：</p>
+<ol>
+<li><p><strong>Phase 1（C_old,new）</strong>：Leader 创建包含新旧两个配置的”联合配置”日志条目。此时所有决策（选举、日志提交）需要<strong>同时获得旧配置多数和新配置多数的同意</strong>。这条联合配置日志被提交后，联合配置生效。</p>
+</li>
+<li><p><strong>Phase 2（C_new）</strong>：Leader 创建仅包含新配置的日志条目。C_new 被提交后，新配置完全生效，旧节点可以安全下线。</p>
+</li>
+</ol>
+<p>Joint Consensus 的关键保证是：在 C_old,new 和 C_new 阶段之间，集群永远存在一个重叠的”多数集合”保证不会脑裂。具体来说：</p>
+<ul>
+<li>在联合配置期间，任何决策必须同时获得旧多数和新多数的同意，因此即使旧配置中某组节点试图独立选举，它们也无法获得新配置多数的同意。</li>
+<li>如果 Leader 在联合配置阶段宕机，新选出的 Leader 一定会继续完成成员变更流程——因为当选的 Leader 必须拥有联合配置日志（已提交），它会继续推进到 C_new。</li>
+</ul>
+<p>etcd 在实际实现中采用了更简化的<strong>单节点变更策略</strong>：每次只增减一个节点。以 3 节点集群为例，从 3 增到 4 的变化中，旧多数是 2，新多数是 3。在任一时刻，旧多数的 2 个节点和新多数的 3 个节点不可能同时被不同的 Leader 获得而互不知晓——因为总共只有 4 个节点，任何包含 3 个节点的集合必然包含旧多数的至少 2 个节点中的一个。这个性质在单节点变更下自然成立，是工程实践对论文理论的务实妥协。</p>
+<hr>
+<h2 id="七、日志压缩与快照"><a href="#七、日志压缩与快照" class="headerlink" title="七、日志压缩与快照"></a>七、日志压缩与快照</h2><h3 id="为什么需要日志压缩"><a href="#为什么需要日志压缩" class="headerlink" title="为什么需要日志压缩"></a>为什么需要日志压缩</h3><p>Raft 的日志理论上可以无限增长——每一条命令都被持久化在日志中，即使它们早已被提交并应用到状态机。两个实际问题迫使我们必须引入日志压缩：</p>
+<ol>
+<li><strong>磁盘空间</strong>：在持续运行的系统（如 etcd 管理 Kubernetes 集群配置）中，日志最终会占用过大的磁盘空间。</li>
+<li><strong>重启恢复时间</strong>：节点宕机重启后需要重放全部日志来重建状态机，如果日志有数千万条，重放时间不可接受。</li>
+</ol>
+<p>快照（Snapshot）机制允许节点丢弃已应用的日志前缀，用状态机的当前全量快照替代。快照之后，日志的”逻辑起点”从 1 变为 <code>LastIncludedIndex + 1</code>。</p>
+<h3 id="InstallSnapshot-RPC"><a href="#InstallSnapshot-RPC" class="headerlink" title="InstallSnapshot RPC"></a>InstallSnapshot RPC</h3><p>当 Leader 发现某个 Follower 的日志落后太多——所需的下一条日志（<code>nextIndex</code>）小于等于 Leader 日志中已被快照覆盖的最大 index——Leader 不再使用 AppendEntries，而是发送 InstallSnapshot RPC 将当前快照和元数据传送给该 Follower。</p>
+<p><img src="/images/%E6%97%A5%E5%BF%97%E5%8E%8B%E7%BC%A9.png" srcset="/img/loading.gif" lazyload alt="日志压缩"></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs go"><span class="hljs-keyword">type</span> InstallSnapshotArgs <span class="hljs-keyword">struct</span> &#123;<br>    Term              <span class="hljs-type">int</span>    <span class="hljs-comment">// Leader 的 term</span><br>    LeaderId          <span class="hljs-type">int</span><br>    LastIncludedIndex <span class="hljs-type">int</span>    <span class="hljs-comment">// 快照覆盖的最后一条日志 index</span><br>    LastIncludedTerm  <span class="hljs-type">int</span>    <span class="hljs-comment">// 快照覆盖的最后一条日志 term</span><br>    Data              []<span class="hljs-type">byte</span> <span class="hljs-comment">// 快照数据（可分批传输）</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>Follower 收到快照后的处理流程：</p>
+<ol>
+<li>清空本地日志。</li>
+<li>将快照数据写入状态机。</li>
+<li>将 <code>LastIncludedIndex</code> 作为日志的”虚拟起点”保存——此后 Follower 的日志从 <code>LastIncludedIndex + 1</code> 开始继续追加。</li>
+<li>持久化快照元数据，以便宕机重启后知道日志的有效起点。</li>
+</ol>
+<p>快照数据可以分块传输（通过 offset 和 done 字段），避免单次 RPC 携带过大的 payload 导致超时。</p>
+<h3 id="快照的时机与策略"><a href="#快照的时机与策略" class="headerlink" title="快照的时机与策略"></a>快照的时机与策略</h3><p>论文不强制要求何时做快照，这完全属于实现决策。常见的策略包括：</p>
+<ul>
+<li><strong>按日志大小阈值</strong>：当日志条目数超过阈值（如 10000 条）或日志文件大小超过阈值（如 32MB）时触发快照。</li>
+<li><strong>按时间间隔</strong>：每隔固定时间（如每小时）做一次快照。</li>
+<li><strong>按已应用命令数</strong>：状态机每执行一定数量的命令后触发快照。</li>
+</ul>
+<p>快照操作本身需要状态机支持序列化，且不能阻塞正常的日志复制——通常采用写时复制（Copy-On-Write）技术在后台写入快照文件，前台继续正常服务。</p>
+<hr>
+<h2 id="八、etcd-中的-Raft-工程实践"><a href="#八、etcd-中的-Raft-工程实践" class="headerlink" title="八、etcd 中的 Raft 工程实践"></a>八、etcd 中的 Raft 工程实践</h2><h3 id="etcd-的-Raft-库：从论文到生产级代码"><a href="#etcd-的-Raft-库：从论文到生产级代码" class="headerlink" title="etcd 的 Raft 库：从论文到生产级代码"></a>etcd 的 Raft 库：从论文到生产级代码</h3><p>etcd 不是一个直接使用 Raft 论文伪代码的项目。它维护了一个独立的 Raft 库（<code>go.etcd.io/raft/v3</code>），被 etcd、CockroachDB、TiKV 等多个知名分布式系统使用。这个库在保持与论文协议一致的基础上，做了大量面向生产环境的工程优化。</p>
+<p>etcd 的 Raft 实现遵循一个核心设计哲学：<strong>Raft 库只负责共识逻辑，不处理网络和存储</strong>。库本身是一个纯状态机，通过 channel 对外暴露 <code>Ready</code> 结构，由上层（etcd server）负责实际的网络发送和磁盘写入。这种分层让共识核心保持简洁可测试，存储和网络的复杂性留给应用层处理。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs go"><span class="hljs-comment">// Ready 结构：Raft 状态机每一轮的输出</span><br><span class="hljs-keyword">type</span> Ready <span class="hljs-keyword">struct</span> &#123;<br>    <span class="hljs-comment">// 需要持久化到 WAL 的数据</span><br>    HardState   HardState     <span class="hljs-comment">// term, vote, commit</span><br>    Entries     []Entry       <span class="hljs-comment">// 需要落盘的日志条目</span><br>    Snapshot    Snapshot      <span class="hljs-comment">// 需要落盘的快照</span><br><br>    <span class="hljs-comment">// 需要发送给其他节点的消息</span><br>    Messages    []Message<br><br>    <span class="hljs-comment">// 已提交、可应用到状态机的条目</span><br>    CommittedEntries []Entry<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>上层应用的处理循环大致如下：从 Raft 节点取出 <code>Ready</code>，先持久化 <code>HardState</code>、<code>Entries</code>、<code>Snapshot</code> 到 WAL，然后将 <code>Messages</code> 发送到网络，最后将 <code>CommittedEntries</code> 应用到状态机。每一步都可能失败，上层需要正确处理重试和幂等。</p>
+<p><img src="/images/etcd%E6%9E%B6%E6%9E%84.png" srcset="/img/loading.gif" lazyload alt="etcd 架构"></p>
+<h3 id="多-Raft-与分段"><a href="#多-Raft-与分段" class="headerlink" title="多 Raft 与分段"></a>多 Raft 与分段</h3><p>单个 Raft 组能管理的节点数量是有限的（论文建议 3-5 或 7-9 个节点），原因在于：每次写入都需要多数节点确认，节点越多延迟越高。大规模集群（如 TiKV 管理百万级 region）的解决方案是”多 Raft”——将数据按 key range 分段（sharding），每段由一个独立的 Raft 组管理。</p>
+<p>etcd 本身使用单 Raft 组（线性一致性的 KV 存储），但在 TiKV 等衍生系统中多 Raft 成为核心模式。每个 Raft 组可以分布在不同节点上，某节点的宕机只影响其负责的 key range 的可用性，不影响整个集群。多 Raft 本质上是在一致性、可用性和分区容错三者之间，通过缩小”分区影响范围”来获得更好的整体可用性。</p>
+<h3 id="线性一致性读：ReadIndex-与-LeaseRead"><a href="#线性一致性读：ReadIndex-与-LeaseRead" class="headerlink" title="线性一致性读：ReadIndex 与 LeaseRead"></a>线性一致性读：ReadIndex 与 LeaseRead</h3><p>Raft 默认只保证写入的线性一致性——Leader 顺序地将命令追加到日志，保证全局有序。但读请求如果直接由 Follower 响应，可能读到过期数据（Follower 的日志可能落后于 Leader）。etcd 提供两种线性一致性读模式：</p>
+<ul>
+<li><p><strong>ReadIndex</strong>：Leader 在处理读请求时，先向集群确认自己仍是 Leader（通过新一轮心跳的多数确认），记录当前的 <code>commitIndex</code>，然后等待状态机 apply 到该 index 后返回读结果。这种读不需要写日志（不产生新的 Raft 条目），比”把读当写提交”高效得多——只需要一轮心跳确认，而不是一次完整的日志共识。</p>
+</li>
+<li><p><strong>LeaseRead</strong>：Leader 利用心跳租约做乐观读。核心思路是：如果 Leader 在 election timeout 内仍被多数节点确认为 Leader，且距离下一次可能的选举还有足够的时间窗口，那么 Leader 可以直接服务本地读，省去 ReadIndex 的心跳确认往返。这是 etcd 引入的工程优化，在绝大多数情况下牺牲的安全性窗口极小（在微秒到毫秒级别）。</p>
+</li>
+</ul>
+<p>两者的取舍体现在 etcd 的 <code>--experimental-serializable-ordering</code> 等配置项中，实际部署中需要根据一致性要求和延迟预算来权衡。</p>
+<h3 id="WAL、Snapshot、Storage-接口"><a href="#WAL、Snapshot、Storage-接口" class="headerlink" title="WAL、Snapshot、Storage 接口"></a>WAL、Snapshot、Storage 接口</h3><p>etcd 的存储栈分为清晰的三层：</p>
+<ul>
+<li><p><strong>WAL（Write-Ahead Log）</strong>：在 Raft 日志被应用到状态机之前先落盘，保证已提交但未 apply 的日志在宕机重启后不丢失。每次 <code>HardState</code> 和 <code>Entries</code> 变更都写入 WAL。etcd 做了批量刷盘优化——多个 Ready 周期的数据可以在内存中合并，最终通过一次 <code>fsync</code> 落盘，显著减少磁盘同步次数。</p>
+</li>
+<li><p><strong>Snapshot</strong>：状态机的定期全量快照，用于压缩 WAL 历史。etcd 的快照采用增量策略——先做全量快照，后续可以生成增量文件。快照数据存储为文件，通过 <code>raft.Storage</code> 接口对上层暴露。</p>
+</li>
+<li><p><strong>Storage 接口</strong>：<code>raft.Storage</code> 抽象了日志存储，提供六个方法：<code>InitialState</code>（获取持久化的初始状态）、<code>Entries</code>（按范围查询日志条目）、<code>Term</code>（按 index 查询 term）、<code>LastIndex</code>、<code>FirstIndex</code>、<code>Snapshot</code>。上层可实现为内存存储（用于单元测试）或磁盘存储（用于生产环境）。</p>
+</li>
+</ul>
+<p><img src="/images/etcd%E6%9E%B6%E6%9E%84%E4%BB%A5%E5%8F%8A%E6%B5%81%E7%A8%8B.png" srcset="/img/loading.gif" lazyload alt="etcd 架构流程"></p>
+<h3 id="工程优化：批量、流水线与异步-Apply"><a href="#工程优化：批量、流水线与异步-Apply" class="headerlink" title="工程优化：批量、流水线与异步 Apply"></a>工程优化：批量、流水线与异步 Apply</h3><p>etcd 在生产中面临高吞吐场景，单个请求逐个走 Raft 提交的延迟不可接受。几个关键优化：</p>
+<ul>
+<li><p><strong>批量提交（Batching）</strong>：多个客户端的写请求合入一个 AppendEntries 批次，共享一次 Raft 共识的延迟。etcd 的提案管道中有一个 batch interval 窗口，在此窗口内收集到的请求被打包成一个批次提交给 Raft。</p>
+</li>
+<li><p><strong>流水线（Pipelining）</strong>：Leader 不必等上一轮 AppendEntries 收到全部回复才发送下一轮。多个 AppendEntries 可以并行在途，充分利用网络带宽。etcd 为每个 Follower 维护一个独立的发送流，通过 gRPC stream 实现流水线传输。</p>
+</li>
+<li><p><strong>异步 Apply</strong>：Raft <code>commitIndex</code> 推进后，已提交条目的 apply 到状态机是异步的。etcd 使用独立的 apply 循环，在 apply 的同时 Raft 状态机可以继续推进 <code>commitIndex</code>，不阻塞共识管道。这种流水线设计让 etcd 的吞吐接近理论极限。</p>
+</li>
+</ul>
+<h2 id="九、Raft-之后"><a href="#九、Raft-之后" class="headerlink" title="九、Raft 之后"></a>九、Raft 之后</h2><p>Raft 论文发表至今已超过十年，它的影响远超预期。</p>
+<p><strong>工业落地</strong>方面，除了 etcd（Kubernetes 的核心依赖），TiKV 使用多 Raft 管理百万级 region 的一致性，CockroachDB 用 Raft 实现 Geo-partition 下的分布式事务，NATS 用 Raft 做 JetStream 的消息持久化，Consul 使用 Raft 做服务发现的共识后端，ScyllaDB 用 Raft 做 schema 变更的协调。几乎在任何需要”一组节点就某件事达成一致”的场景中，Raft 都成了首选方案。</p>
+<p><strong>学术影响</strong>方面，Raft 的”可理解性”目标改变了共识算法研究的方向。后续工作更关注实现的正确性而非纯粹的理论最优——可验证的实现（如 Verdi 框架下的 verified Raft）、可测试的实现（如 Jepsen 对 Raft 实现的测试框架）都受益于 Raft 的清晰规范。</p>
+<p>但 Raft 不是终点。Paxos 在 Google 内部有大规模的验证实践（Chubby 和后续的 Spanner 底层），EPaxos 在广域网延迟下通过无 Leader 设计获得了更好的表现，基于共享存储的共识（如 Azure Storage 的垂直 Paxos）提供了新的权衡维度。理解 Raft 的核心思想后，更容易看清这些变体之间的取舍逻辑——它们本质上都是在”可理解性”、”性能”、”容错模型”三个维度上的不同权衡。</p>
+<hr>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ul>
+<li>Diego Ongaro, John Ousterhout. “In Search of an Understandable Consensus Algorithm.” USENIX ATC 2014.</li>
+<li>Diego Ongaro. “Consensus: Bridging Theory and Practice.” PhD Dissertation, Stanford University, 2014.</li>
+<li>The Raft Paper (Extended Version): <a target="_blank" rel="noopener" href="https://raft.github.io/raft.pdf">https://raft.github.io/raft.pdf</a></li>
+<li>Raft 可视化演示: <a target="_blank" rel="noopener" href="https://raft.github.io/">https://raft.github.io/</a></li>
+<li>etcd Raft 库: <a target="_blank" rel="noopener" href="https://github.com/etcd-io/raft">https://github.com/etcd-io/raft</a></li>
+<li>MIT 6.5840 (原 6.824) Lab 2: Raft</li>
+</ul>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>Raft 共识算法：从算法原理到 etcd 实现</div>
+      <div>https://liangxia6.github.io/2025/02/08/3_Raft/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Liangxia6</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2025年2月8日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2025/05/01/6_Zero2Hero/" title="从零到模型：Karpathy 深度学习课程笔记">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">从零到模型：Karpathy 深度学习课程笔记</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2025/01/10/2_GFS/" title="GFS 浅析：Google 的分布式文件系统">
+                        <span class="hidden-mobile">GFS 浅析：Google 的分布式文件系统</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+      <a target="_blank" rel="noopener" href="https://github.com/Liangxia6">Liangxia6</a> | Liangxia的博客
+    </div>
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    function isExpandAllEnabled() {
+      return CONFIG.toc && CONFIG.toc.expand_all === true;
+    }
+    function expandAllToc() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .tocbot-is-collapsed').removeClass('tocbot-is-collapsed');
+    }
+    function updateTocToggle($li, $childList) {
+      var $toggle = $li.children('.toc-toggle');
+      if ($toggle.length === 0) { return; }
+      var collapsed = $childList.hasClass('tocbot-is-collapsed');
+      $toggle
+        .toggleClass('toc-toggle-collapsed', collapsed)
+        .toggleClass('toc-toggle-expanded', !collapsed);
+    }
+    function bindTocToggle() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .toc-list-item').each(function() {
+        var $li = jQuery(this);
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) {
+          if ($li.children('.toc-toggle').length === 0) {
+            $li.prepend('<span class="toc-toggle toc-toggle-placeholder" aria-hidden="true">›</span>');
+          }
+          return;
+        }
+
+        if ($li.children('.toc-toggle').length === 0) {
+          $li.prepend('<span class="toc-toggle toc-toggle-expanded" aria-hidden="true">›</span>');
+        }
+        updateTocToggle($li, $childList);
+      });
+      jQuery('#toc-body').off('click.tocToggle').on('click.tocToggle', '.toc-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $li = jQuery(this).parent('.toc-list-item');
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) { return; }
+        $childList.toggleClass('tocbot-is-collapsed');
+        updateTocToggle($li, $childList);
+      });
+      if (!window.__tocToggleObserver) {
+        window.__tocToggleObserver = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.type !== 'attributes' || mutation.attributeName !== 'class') { return; }
+            var $list = jQuery(mutation.target);
+            var $li = $list.parent('.toc-list-item');
+            if ($li.length === 0) { return; }
+            updateTocToggle($li, $list);
+          });
+        });
+        jQuery('#toc-body ol').each(function() {
+          window.__tocToggleObserver.observe(this, { attributes: true });
+        });
+      }
+    }
+    var tocConfig = Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc);
+    if (isExpandAllEnabled()) {
+      tocConfig.collapseDepth = 6;
+    }
+    window.tocbot.init(tocConfig);
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+    expandAllToc();
+    bindTocToggle();
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+        expandAllToc();
+        bindTocToggle();
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/5.0.0/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

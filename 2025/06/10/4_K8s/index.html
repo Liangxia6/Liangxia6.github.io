@@ -19,21 +19,21 @@
   <meta name="author" content="Liangxia6">
   <meta name="keywords" content="">
   
-    <meta name="description" content="共识算法从论文到实现。Leader 选举、日志复制、安全性保障，以及 etcd 中 Raft 的实际工程使用方式。">
+    <meta name="description" content="谷歌分布式服务的管理工具：k8s 容器编排系统的核心设计。从 Pod、Service 到 Controller Manager，理解 K8s 如何管理大规模容器集群。">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Raft 共识算法：从论文到 etcd 源码">
-<meta property="og:url" content="https://liangxia6.github.io/2025/02/01/3_Raft/index.html">
+<meta property="og:title" content="Kubernetes 浅析：从分布式到云原生">
+<meta property="og:url" content="https://liangxia6.github.io/2025/06/10/4_K8s/index.html">
 <meta property="og:site_name" content="Liangxia的博客">
-<meta property="og:description" content="共识算法从论文到实现。Leader 选举、日志复制、安全性保障，以及 etcd 中 Raft 的实际工程使用方式。">
+<meta property="og:description" content="谷歌分布式服务的管理工具：k8s 容器编排系统的核心设计。从 Pod、Service 到 Controller Manager，理解 K8s 如何管理大规模容器集群。">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2025-01-31T16:00:00.000Z">
-<meta property="article:modified_time" content="2026-05-11T14:55:31.144Z">
+<meta property="article:published_time" content="2025-06-09T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-13T12:12:20.029Z">
 <meta property="article:author" content="Liangxia6">
 <meta name="twitter:card" content="summary_large_image">
   
   
   
-  <title>Raft 共识算法：从论文到 etcd 源码 - Liangxia的博客</title>
+  <title>Kubernetes 浅析：从分布式到云原生 - Liangxia的博客</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -178,7 +178,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="Raft 共识算法：从论文到 etcd 源码"></span>
+            <span id="subtitle" data-typed-text="Kubernetes 浅析：从分布式到云原生"></span>
           
         </div>
 
@@ -189,8 +189,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2025-02-01 00:00" pubdate>
-          2025年2月1日 凌晨
+        <time datetime="2025-06-10 00:00" pubdate>
+          2025年6月10日 凌晨
         </time>
       </span>
     
@@ -251,7 +251,7 @@
       <div class="container nopadding-x-md" id="board-ctn">
         <div id="board">
           <article class="post-content mx-auto">
-            <h1 id="seo-header">Raft 共识算法：从论文到 etcd 源码</h1>
+            <h1 id="seo-header">Kubernetes 浅析：从分布式到云原生</h1>
             
             
               <div class="markdown-body">
@@ -276,8 +276,8 @@
 
   <div class="license-box my-3">
     <div class="license-title">
-      <div>Raft 共识算法：从论文到 etcd 源码</div>
-      <div>https://liangxia6.github.io/2025/02/01/3_Raft/</div>
+      <div>Kubernetes 浅析：从分布式到云原生</div>
+      <div>https://liangxia6.github.io/2025/06/10/4_K8s/</div>
     </div>
     <div class="license-meta">
       
@@ -289,7 +289,7 @@
       
         <div class="license-meta-item license-meta-date">
           <div>发布于</div>
-          <div>2025年2月1日</div>
+          <div>2025年6月10日</div>
         </div>
       
       
@@ -321,9 +321,9 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2025/03/01/4_K8s/" title="Kubernetes 核心解剖：Pod 到集群调度">
+                      <a href="/2025/07/01/8_Agent_Memory/" title="AI Agent 的记忆系统：上下文、RAG 与长期记忆">
                         <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">Kubernetes 核心解剖：Pod 到集群调度</span>
+                        <span class="hidden-mobile">AI Agent 的记忆系统：上下文、RAG 与长期记忆</span>
                         <span class="visible-mobile">上一篇</span>
                       </a>
                     
@@ -331,8 +331,8 @@
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2025/01/10/distributed-system-gfs/" title="GFS 深度拆解：Google 的分布式文件系统">
-                        <span class="hidden-mobile">GFS 深度拆解：Google 的分布式文件系统</span>
+                      <a href="/2025/06/01/7_AI_Agent/" title="AI Agent 入门：让 LLM 学会用工具">
+                        <span class="hidden-mobile">AI Agent 入门：让 LLM 学会用工具</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>
