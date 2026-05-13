@@ -21,19 +21,19 @@
   
     <meta name="description" content="简介2014 年 Google 开源了 Kubernetes，十年后的今天它已经是云原生生态的事实标准。但 K8s 真正的价值不在于它能拉起容器——Docker Compose 也能——而在于它将 Google 内部十余年的大规模集群管理经验，凝练为了一套声明式、自愈、可扩展的分布式系统抽象。 这篇文章不打算写成”K8s 入门教程”，而是沿着两条线索展开：主线是”从分布式到云原生”的宏观演进—">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Kubernetes 浅析：从分布式到云原生">
+<meta property="og:title" content="Kubernetes 浅析：从分布式到云原生（未完成）">
 <meta property="og:url" content="https://liangxia6.github.io/2025/06/10/4_K8s/index.html">
 <meta property="og:site_name" content="Liangxia的博客">
 <meta property="og:description" content="简介2014 年 Google 开源了 Kubernetes，十年后的今天它已经是云原生生态的事实标准。但 K8s 真正的价值不在于它能拉起容器——Docker Compose 也能——而在于它将 Google 内部十余年的大规模集群管理经验，凝练为了一套声明式、自愈、可扩展的分布式系统抽象。 这篇文章不打算写成”K8s 入门教程”，而是沿着两条线索展开：主线是”从分布式到云原生”的宏观演进—">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2025-06-09T16:00:00.000Z">
-<meta property="article:modified_time" content="2026-05-13T14:29:45.308Z">
+<meta property="article:modified_time" content="2026-05-13T14:38:33.279Z">
 <meta property="article:author" content="Liangxia6">
 <meta name="twitter:card" content="summary_large_image">
   
   
   
-  <title>Kubernetes 浅析：从分布式到云原生 - Liangxia的博客</title>
+  <title>Kubernetes 浅析：从分布式到云原生（未完成） - Liangxia的博客</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -178,7 +178,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="Kubernetes 浅析：从分布式到云原生"></span>
+            <span id="subtitle" data-typed-text="Kubernetes 浅析：从分布式到云原生（未完成）"></span>
           
         </div>
 
@@ -212,7 +212,7 @@
         
         
         
-          101 分钟
+          100 分钟
         
       </span>
     
@@ -251,7 +251,7 @@
       <div class="container nopadding-x-md" id="board-ctn">
         <div id="board">
           <article class="post-content mx-auto">
-            <h1 id="seo-header">Kubernetes 浅析：从分布式到云原生</h1>
+            <h1 id="seo-header">Kubernetes 浅析：从分布式到云原生（未完成）</h1>
             
             
               <div class="markdown-body">
@@ -381,8 +381,7 @@
 <!-- TODO: img: kubelet 启动 Pod 的完整流程（镜像拉取 → Sandbox 创建 → CNI → 容器启动 → 探针检查） -->
 
 <hr>
-<h2 id="建议图片素材清单"><a href="#建议图片素材清单" class="headerlink" title="建议图片素材清单"></a>建议图片素材清单</h2><p>以下是根据大纲中所有 <code>&lt;!-- TODO: img: ... --&gt;</code> 占位符整理的建议图片素材，便于统一准备：</p>
-<ol>
+<h2 id="图片素材清单"><a href="#图片素材清单" class="headerlink" title="图片素材清单"></a>图片素材清单</h2><ol>
 <li><strong>Kubernetes 架构全景图</strong> — API Server 居中，etcd &#x2F; Scheduler &#x2F; Controller Manager &#x2F; kubelet &#x2F; kube-proxy 围绕，标注组件间通信方向和数据流（简介部分）</li>
 <li><strong>VM vs 容器架构对比图</strong> — 左侧 VM 栈（App → Guest OS → Hypervisor → Hardware），右侧容器栈（App → Container Engine → Host OS → Hardware），突出资源开销差异（1.1 节）</li>
 <li><strong>Docker 镜像分层示意</strong> — 从最底层 base image 到最顶层 writable layer，每层标注典型内容（1.2 节）</li>
@@ -429,7 +428,7 @@
 
   <div class="license-box my-3">
     <div class="license-title">
-      <div>Kubernetes 浅析：从分布式到云原生</div>
+      <div>Kubernetes 浅析：从分布式到云原生（未完成）</div>
       <div>https://liangxia6.github.io/2025/06/10/4_K8s/</div>
     </div>
     <div class="license-meta">
@@ -474,18 +473,12 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2025/07/01/8_Agent_Memory/" title="AI Agent 的记忆系统：上下文、RAG 与长期记忆">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">AI Agent 的记忆系统：上下文、RAG 与长期记忆</span>
-                        <span class="visible-mobile">上一篇</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2025/06/01/7_AI_Agent/" title="AI Agent 入门：让 LLM 学会用工具">
-                        <span class="hidden-mobile">AI Agent 入门：让 LLM 学会用工具</span>
+                      <a href="/2025/02/08/3_Raft/" title="Raft 浅析：从算法原理到 etcd">
+                        <span class="hidden-mobile">Raft 浅析：从算法原理到 etcd</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>
