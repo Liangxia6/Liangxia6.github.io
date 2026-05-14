@@ -27,13 +27,12 @@
 <meta property="og:description" content="GFS 的架构设计与实现解析。从 64MB chunk 的设计考量到单 Master 如何不成为瓶颈，从租约机制与流水线写入到一致性模型的取舍。">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://liangxia6.github.io/images/GFS%E6%9E%B6%E6%9E%84.png">
-<meta property="og:image" content="https://liangxia6.github.io/images/chunk%E5%9C%A8master%E4%B8%AD.png">
 <meta property="og:image" content="https://liangxia6.github.io/images/chunk%E5%9C%A8chunkserver%E7%9A%84%E5%88%86%E5%B8%83.png">
 <meta property="og:image" content="https://liangxia6.github.io/images/chunk%E4%B8%8EWAL.png">
 <meta property="og:image" content="https://liangxia6.github.io/images/chunk%E4%B8%8E%E8%AF%BB%E5%86%99.png">
 <meta property="og:image" content="https://liangxia6.github.io/images/write%E6%B5%81%E7%A8%8B.png">
 <meta property="article:published_time" content="2025-01-09T16:00:00.000Z">
-<meta property="article:modified_time" content="2026-05-13T12:07:01.228Z">
+<meta property="article:modified_time" content="2026-05-14T11:46:01.271Z">
 <meta property="article:author" content="Liangxia6">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://liangxia6.github.io/images/GFS%E6%9E%B6%E6%9E%84.png">
@@ -208,7 +207,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          8.5k 字
+          10k 字
         
       </span>
     
@@ -219,7 +218,7 @@
         
         
         
-          71 分钟
+          85 分钟
         
       </span>
     
@@ -281,12 +280,13 @@
 </blockquote>
 <p>最后一条尤为关键——因为 Google 自己写 MapReduce、Bigtable，GFS 不需要兼容 POSIX，可以做很多简化。换到今天的开源项目场景，约束条件就多得多。</p>
 <hr>
-<h2 id="二、GFS-架构"><a href="#二、GFS-架构" class="headerlink" title="二、GFS 架构"></a>二、GFS 架构</h2><p>GFS 的架构很简洁：<strong>一个 Master 管元数据，一堆 ChunkServer 存数据，Client 直接找 ChunkServer 读写</strong>。</p>
+<h2 id="二、GFS-架构"><a href="#二、GFS-架构" class="headerlink" title="二、GFS 架构"></a>二、GFS 架构</h2><p>GFS 的架构很简洁：<strong>一个 Master 管元数据，一堆 ChunkServer 存数据，Client 直接找 ChunkServer 读写</strong>。整体架构如下图所示。</p>
 <p><img src="/images/GFS%E6%9E%B6%E6%9E%84.png" srcset="/img/loading.gif" lazyload alt="GFS 架构"></p>
+<p>对照图中的三层结构，三个角色的分工一目了然：</p>
 <ul>
-<li><strong>Master</strong>：维护所有元数据（命名空间、文件到 chunk 的映射、chunk 位置）。全局唯一。</li>
-<li><strong>ChunkServer</strong>：在本地磁盘存储 chunk（GFS_cpp 用 leveldb 存储，每个 chunk 是一条 KV 记录）。</li>
-<li><strong>Client</strong>：提供 open&#x2F;read&#x2F;write&#x2F;close 接口，内部与 Master 和 ChunkServer 通信。</li>
+<li><strong>Master</strong>（图中顶部中央）：维护所有元数据（命名空间、文件到 chunk 的映射、chunk 位置）。全局唯一，Client 和 ChunkServer 都通过控制流（Control Flow，图中虚线箭头）与 Master 通信。</li>
+<li><strong>ChunkServer</strong>（图中底部多个方框）：在本地磁盘存储 chunk，通过心跳（Heartbeat）向 Master 汇报状态。ChunkServer 之间通过数据流（图中实线箭头）进行副本复制。</li>
+<li><strong>Client</strong>（图中左侧）：提供 open&#x2F;read&#x2F;write&#x2F;close 接口。Client 先从 Master 获取元数据（控制流），然后直接与 ChunkServer 传输数据（数据流）——<strong>数据传输不经过 Master</strong>，这是 GFS 最重要的设计决策，也是图中”控制流与数据流分离”这一核心原则的可视化体现。</li>
 </ul>
 <p>GFS_cpp 的 Client API 定义在 <code>gfs_client.h</code>：</p>
 <figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp">google::protobuf::<span class="hljs-function">util::Status <span class="hljs-title">open</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">char</span>* filename, <span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> flags)</span></span>;<br>google::protobuf::<span class="hljs-function">util::StatusOr&lt;Data&gt; <span class="hljs-title">read</span><span class="hljs-params">(</span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> <span class="hljs-type">char</span>* filename, <span class="hljs-type">size_t</span> offset, <span class="hljs-type">size_t</span> nbytes)</span></span>;<br>google::protobuf::<span class="hljs-function">util::Status <span class="hljs-title">write</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">char</span>* path, <span class="hljs-type">void</span>* buffer,</span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">size_t</span> offset, <span class="hljs-type">size_t</span> nbytes)</span></span>;<br>google::protobuf::<span class="hljs-function">util::Status <span class="hljs-title">close</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">char</span>* filename)</span></span>;<br></code></pre></td></tr></table></figure>
@@ -296,14 +296,11 @@
 <hr>
 <h2 id="三、64MB-的-chunk"><a href="#三、64MB-的-chunk" class="headerlink" title="三、64MB 的 chunk"></a>三、64MB 的 chunk</h2><p>GFS 把文件切分为固定大小的 chunk，每个 64MB。这个数字乍看很大，但背后有明确的计算逻辑。</p>
 <p>假设存储 1TB 数据（3 副本），64MB chunk 下 Master 只需管理约 3MB 的元数据——论文中一个 chunk 的元数据小于 64 字节。如果 chunk 改为 4KB（传统文件系统典型值），元数据量将膨胀 16000 倍，Master 内存无法承载。</p>
-<figure class="highlight basic"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs basic"><span class="hljs-symbol">1 </span>TB × <span class="hljs-number">3</span> 副本 ÷ <span class="hljs-number">64</span> MB × <span class="hljs-number">64</span> 字节 ≈ <span class="hljs-number">3</span> MB<br></code></pre></td></tr></table></figure>
-
-<p><img src="/images/chunk%E5%9C%A8master%E4%B8%AD.png" srcset="/img/loading.gif" lazyload alt="Chunk 在 Master 中"></p>
-<p>GFS_cpp 的 <code>MetadataManager</code>（<code>metadata_manager.h</code>）负责 chunk 的创建和查询：</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-comment">// 为指定文件和 chunk 索引创建 chunk</span><br>google::protobuf::<span class="hljs-function">util::StatusOr&lt;std::string&gt; <span class="hljs-title">CreateChunkHandle</span><span class="hljs-params">(</span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> std::string&amp; filename, <span class="hljs-type">uint32_t</span> chunk_index)</span></span>;<br><br><span class="hljs-comment">// 查询指定文件和索引的 chunk handle</span><br>google::protobuf::<span class="hljs-function">util::StatusOr&lt;std::string&gt; <span class="hljs-title">GetChunkHandle</span><span class="hljs-params">(</span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> std::string&amp; filename, <span class="hljs-type">uint32_t</span> chunk_index)</span></span>;<br><br><span class="hljs-comment">// 生成全局唯一的 chunk handle (UUID)</span><br><span class="hljs-function">std::string <span class="hljs-title">AllocateNewChunkHandle</span><span class="hljs-params">()</span></span>;<br></code></pre></td></tr></table></figure>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><code class="hljs php"><span class="hljs-number">1</span> TB × <span class="hljs-number">3</span> 副本 ÷ <span class="hljs-number">64</span> MB × <span class="hljs-number">64</span> 字节 ≈ <span class="hljs-number">3</span> MB<br><span class="hljs-number">1</span> TB × <span class="hljs-number">3</span> 副本 ÷ <span class="hljs-number">64</span> MB × <span class="hljs-number">64</span> 字节 ≈ <span class="hljs-number">3</span> MB<br><br>![Chunk 在 Master 中](/images/chunk在master中.png)<br><br>图中展示了 Master 内部的元数据组织方式。可以看到，Master 维护了两层映射：第一层是（文件名，chunk 索引）→ 全局唯一的 chunk handle；第二层是 chunk handle → 该 chunk 的三个副本位置列表、版本号、以及租约持有者信息。图中右侧的数据库（LevelDB）持久化了这些元数据，Master 通过操作日志（Operation Log）先写后读来保证元数据的持久性和一致性。<br><br>GFS_cpp 的 MetadataManager<br><br>```cpp<br><span class="hljs-comment">// 为指定文件和 chunk 索引创建 chunk</span><br>google::<span class="hljs-variable constant_">protobuf</span>::<span class="hljs-variable constant_">util</span>::<span class="hljs-variable constant_">StatusOr</span>&lt;std::<span class="hljs-variable constant_">string</span>&gt; <span class="hljs-title function_ invoke__">CreateChunkHandle</span>(<br>    <span class="hljs-keyword">const</span> std::<span class="hljs-variable constant_">string</span>&amp; filename, uint32_t chunk_index);<br><br><span class="hljs-comment">// 查询指定文件和索引的 chunk handle</span><br>google::<span class="hljs-variable constant_">protobuf</span>::<span class="hljs-variable constant_">util</span>::<span class="hljs-variable constant_">StatusOr</span>&lt;std::<span class="hljs-variable constant_">string</span>&gt; <span class="hljs-title function_ invoke__">GetChunkHandle</span>(<br>    <span class="hljs-keyword">const</span> std::<span class="hljs-variable constant_">string</span>&amp; filename, uint32_t chunk_index);<br><br><span class="hljs-comment">// 生成全局唯一的 chunk handle (UUID)</span><br>std::<span class="hljs-variable constant_">string</span> <span class="hljs-title function_ invoke__">AllocateNewChunkHandle</span>();<br></code></pre></td></tr></table></figure>
 
 <p>chunk handle 是 UUID 字符串，全局唯一，每个 chunk 还维护一个版本号用于检测过期副本。</p>
 <p><img src="/images/chunk%E5%9C%A8chunkserver%E7%9A%84%E5%88%86%E5%B8%83.png" srcset="/img/loading.gif" lazyload alt="Chunk 在 ChunkServer 的分布"></p>
+<p>图中展示了三个 ChunkServer 上的 chunk 分布情况。深色方块代表同一 chunk 的三个副本（相同 chunk handle），它们被分别存储在三台不同的 ChunkServer 上，实现了跨机器冗余。浅色方块是其他 chunk 的副本。这种分布保证了单一节点故障不会导致数据丢失——任意一个 ChunkServer 宕机，该节点上的 chunk 副本都可以从其他两个副本中恢复。</p>
 <p>64MB 当然也有代价。小文件会浪费元数据空间（一个 1KB 的文件也占用一个 chunk 条目），但 Google 的场景下小文件不是主流。另一个问题是热点——热门 chunk 可能被大量 Client 同时请求，GFS 的应对是增加副本数来分散读流量。</p>
 <hr>
 <h2 id="四、单-Master-设计"><a href="#四、单-Master-设计" class="headerlink" title="四、单 Master 设计"></a>四、单 Master 设计</h2><p>单 Master 是 GFS 最受质疑的设计点，但 Google 通过一系列优化让它不至于成为瓶颈：</p>
@@ -320,6 +317,7 @@
 <p>这段代码展示了三级缓存的查询路径：chunk_handle → version → 副本位置，各自独立缓存。有可能部分命中部分未命中——比如 chunk_handle 还在但副本位置因 GC 失效，此时需要重新向 Master 请求。</p>
 <p>Master 的写操作遵循 WAL（Write-Ahead Log）：先写操作日志到磁盘，再修改内存中的元数据结构。每次 <code>CreateChunkHandle</code> 或 <code>AdvanceChunkVersion</code> 都会先落盘。如果 Master 宕机，重启时重放操作日志即可恢复全部状态。</p>
 <p><img src="/images/chunk%E4%B8%8EWAL.png" srcset="/img/loading.gif" lazyload alt="Chunk 与 WAL"></p>
+<p>图中展示了 Chunk 与 WAL 之间的关系。左侧是 Master 的 WAL 操作日志——每次元数据修改（CreateChunk、AdvanceVersion 等）都先顺序追加到日志文件，确保崩溃后可通过日志回放恢复。中间是 Master 的内存元数据（Chunk Metadata），在日志落盘后才被更新。右侧是 ChunkServer 上的实际数据存储——每个 ChunkServer 以 LevelDB 作为底层存储引擎，每个 chunk 对应一条 KV 记录（图中 KV 表所示），通过 chunk handle 作为 key 来存取。这种”Master 管元数据→ChunkServer 管数据”的分层结构确保了两者生命周期可独立管理。</p>
 <hr>
 <h2 id="五、读写流程"><a href="#五、读写流程" class="headerlink" title="五、读写流程"></a>五、读写流程</h2><h3 id="读流程"><a href="#读流程" class="headerlink" title="读流程"></a>读流程</h3><p>读过程相对简单。Client 根据文件名和 offset 计算 chunk 索引（offset &#x2F; 64MB），查询缓存或 Master 获取 chunk 位置，然后选择最近的 ChunkServer 拉取数据。</p>
 <p>GFS_cpp 中 Client 发起读请求的逻辑（<code>client_impl.cc</code>）：</p>
@@ -327,6 +325,7 @@
 
 <p>缓存在大多数情况下屏蔽了对 Master 的访问，仅在首次读取或缓存过期时才需要走完整的查询路径。</p>
 <p><img src="/images/chunk%E4%B8%8E%E8%AF%BB%E5%86%99.png" srcset="/img/loading.gif" lazyload alt="Chunk 与读写"></p>
+<p>图中完整展示了 Client 读写 chunk 的两条路径。读路径（图中左侧）：Client 先向 Master 发起 OpenFileRequest 查询 chunk 位置（控制流），Master 返回 chunk handle 和副本地址后，Client 跳过 Master 直接连接最近的 ChunkServer 读取数据（数据流）。写路径（图中右侧）：Client 同样先查询 Master 确认 primary，之后 Client 将数据通过流水线推送给所有副本，再由 primary 协调写入顺序。注意图中读和写流经的 ChunkServer 角色不同——读可以直接找任意副本，写必须经 primary 协调。</p>
 <h3 id="写流程与租约"><a href="#写流程与租约" class="headerlink" title="写流程与租约"></a>写流程与租约</h3><p>写流程的核心挑战：多个 Client 并发写入同一 chunk 时，如何保证所有副本按相同顺序执行写入？</p>
 <p>GFS 的方案是 <strong>租约（lease）</strong>。Master 将某个 chunk 的写入权限授予一个副本（称为 primary），有效期默认 60 秒。Primary 负责决定该 chunk 上所有写操作的顺序。</p>
 <p>GFS_cpp 中租约服务的接口（<code>chunk_server_lease_service_impl.h</code>）：</p>
@@ -335,17 +334,19 @@
 <p>Master 的 <code>MetadataManager</code> 维护租约元数据：</p>
 <figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">SetPrimaryLeaseMetadata</span><span class="hljs-params">(</span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> std::string&amp; chunk_handle,</span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> protos::ChunkServerLocation&amp; server_location,</span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> <span class="hljs-type">uint64_t</span> expiration_unix_sec)</span></span>;<br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">RemovePrimaryLeaseMetadata</span><span class="hljs-params">(<span class="hljs-type">const</span> std::string&amp; chunk_handle)</span></span>;<br>std::pair&lt;std::pair&lt;protos::ChunkServerLocation, <span class="hljs-type">uint64_t</span>&gt;, <span class="hljs-type">bool</span>&gt;<br><span class="hljs-built_in">GetPrimaryLeaseMetadata</span>(<span class="hljs-type">const</span> std::string&amp; chunk_handle);<br></code></pre></td></tr></table></figure>
 
-<p>完整的写入流程（参考论文 Figure 2）：</p>
+<p>完整的写入流程（参考论文 Figure 2）如下图所示。</p>
 <p><img src="/images/write%E6%B5%81%E7%A8%8B.png" srcset="/img/loading.gif" lazyload alt="写流程"></p>
+<p>时序图将写入流程拆分为七个步骤，按时间从上到下展开。图中灰色方块代表数据流（data），白色箭头代表控制流（control）：</p>
 <ol>
-<li>Client 向 Master 查询目标 chunk 的租约持有者</li>
-<li>Master 返回 primary 和 secondary 副本列表</li>
-<li>Client 将数据推送给所有副本（采用流水线方式）</li>
-<li>所有副本确认收到数据后，Client 向 primary 发出正式写入请求</li>
-<li>Primary 决定写入顺序，本地执行写入，再转发给 secondary</li>
-<li>Secondary 写入后回复 primary</li>
-<li>Primary 回复 Client 写入结果</li>
+<li><strong>Client → Master</strong>（控制流）：Client 向 Master 查询目标 chunk 的租约持有者（图中最顶部箭头）</li>
+<li><strong>Master → Client</strong>（控制流）：Master 返回 primary 和 secondary 副本列表（图中 Master 向下的回复箭头）</li>
+<li><strong>Client → 所有副本</strong>（数据流）：Client 将数据推送给所有副本，采用流水线方式——数据先发送给最近的副本，该副本一边接收一边转发给下一个副本，最大化链路利用率（图中 Client 指向三个副本的横向箭头）</li>
+<li><strong>所有副本 → Primary</strong>（控制流）：所有副本确认收到数据后，Client 向 primary 发出正式写入请求（图中底部的控制箭头指向 primary）</li>
+<li><strong>Primary 内部 → Secondary 副本</strong>（控制流）：Primary 决定写入顺序，本地执行写入，再转发给 secondary（图中 Primary 向右指向第二副本、第三副本的箭头）</li>
+<li><strong>Secondary → Primary</strong>（控制流）：Secondary 写入后回复 primary</li>
+<li><strong>Primary → Client</strong>（控制流）：Primary 回复 Client 写入结果</li>
 </ol>
+<p>注意图中控制流和数据流的分离——数据通过流水线高效传输到所有副本，但写入顺序的控制权集中在 primary 手中，这是 GFS 保证一致性的关键设计。</p>
 <p><strong>流水线（pipeline）</strong> 的实现方式：假设副本为 CS1（距 Client 最近）、CS2、CS3，Client 将数据发送给 CS1，CS1 一边接收一边转发给 CS2，CS2 继续转发给 CS3。这种串行转发的优势是最大化利用网络带宽——Client 不需要同时向三个副本发送数据。代价是最后一个副本的延迟略高。</p>
 <p><strong>控制流与数据流分离</strong>是这里的核心设计原则：数据量大时走流水线路径高效传输，控制流则通过 primary → secondary 链路确保写入顺序一致。GFS_cpp 中这两条路径使用不同的 RPC 接口实现——<code>SendChunkDataRequest</code> 负责数据推送，<code>WriteFileChunkRequest</code> 负责控制指令。</p>
 <hr>

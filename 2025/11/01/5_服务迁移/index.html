@@ -42,7 +42,7 @@
 <meta property="og:image" content="https://liangxia6.github.io/images/17787539079709.jpg">
 <meta property="og:image" content="https://liangxia6.github.io/images/17787565978396.jpg">
 <meta property="article:published_time" content="2025-10-31T16:00:00.000Z">
-<meta property="article:modified_time" content="2026-05-14T11:16:59.306Z">
+<meta property="article:modified_time" content="2026-05-14T11:47:17.595Z">
 <meta property="article:author" content="Liangxia6">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://liangxia6.github.io/images/17787532320362.jpg">
@@ -217,7 +217,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          15k 字
+          16k 字
         
       </span>
     
@@ -228,7 +228,7 @@
         
         
         
-          122 分钟
+          132 分钟
         
       </span>
     
@@ -285,8 +285,9 @@
 <li><strong>城区场景</strong>：防范鬼探头问题、避免连环撞车、车辆编排自动驾驶。</li>
 <li><strong>封闭园区场景</strong>：宁波舟山港梅东码头的无人集卡、新疆黑山矿区的无人矿车。</li>
 </ul>
-<p>车路云协同由三部分组成：</p>
+<p>车路云协同由 <strong>车端、路侧、云端</strong> 三部分组成，整体架构如下图所示。</p>
 <p><img src="/images/17787532320362.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>对照图中的三层架构，自下而上分别是：</p>
 <p><strong>车端（Vehicle）</strong></p>
 <ul>
 <li><strong>组成</strong>：车载单元（OBU）、各类传感器（摄像头&#x2F;毫米波雷达）、智能座舱。</li>
@@ -302,8 +303,9 @@
 <li><strong>组成</strong>：中心云、区域云、边缘云。</li>
 <li><strong>功能</strong>：跨区域交通调度、大数据分析与挖掘、模型训练。</li>
 </ul>
-<h3 id="关键通信协议：C-V2X"><a href="#关键通信协议：C-V2X" class="headerlink" title="关键通信协议：C-V2X"></a>关键通信协议：C-V2X</h3><p>通信上采用 <strong>C-V2X</strong> 标准（V2V, V2I, V2N, V2P），包含两个核心接口：</p>
+<h3 id="关键通信协议：C-V2X"><a href="#关键通信协议：C-V2X" class="headerlink" title="关键通信协议：C-V2X"></a>关键通信协议：C-V2X</h3><p>通信上采用 <strong>C-V2X</strong> 标准（V2V, V2I, V2N, V2P），包含两个核心接口，如下图所示。</p>
 <p><img src="/images/17787532647783.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>图中将 C-V2X 的通信架构分为直连通信和蜂窝通信两条路径。具体来说：</p>
 <ol>
 <li><strong>PC5 直连接口（侧链通信 Sidelink）</strong>：<ul>
 <li>独立于蜂窝网络，在没有信号的偏远地区或隧道也能通信。</li>
@@ -331,8 +333,9 @@
 </ol>
 <p>根据”打包”这些状态的载体不同，技术演进经历了从虚拟机到容器的跨越。</p>
 <hr>
-<h3 id="2-1-传统路线：基于虚拟机的迁移（VM-Migration）"><a href="#2-1-传统路线：基于虚拟机的迁移（VM-Migration）" class="headerlink" title="2.1 传统路线：基于虚拟机的迁移（VM Migration）"></a>2.1 传统路线：基于虚拟机的迁移（VM Migration）</h3><p>在传统的云数据中心（如核心机房），最成熟、应用最广泛的热迁移方案是基于虚拟机的迁移（如 VMware 的 vMotion 与 Storage vMotion 技术）。</p>
+<h3 id="2-1-传统路线：基于虚拟机的迁移（VM-Migration）"><a href="#2-1-传统路线：基于虚拟机的迁移（VM-Migration）" class="headerlink" title="2.1 传统路线：基于虚拟机的迁移（VM Migration）"></a>2.1 传统路线：基于虚拟机的迁移（VM Migration）</h3><p>在传统的云数据中心（如核心机房），最成熟、应用最广泛的热迁移方案是基于虚拟机的迁移（如 VMware 的 vMotion 与 Storage vMotion 技术），其工作流程如下图所示。</p>
 <p><img src="/images/17787533669291.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>从图中可以看到，迁移发生在两个 ESX Server 之间：源端 ESX Server（图中左侧，标注为 Source ESX Server）通过底层的绿色数据管道，将完整的虚拟机状态（包括磁盘、内存、CPU 寄存器等）迁移到目标端 ESX Server（图中右侧，标注为 Target ESX Server）。目标端通过共享存储阵列（图中底部的 Virtual Disk &#x2F; RDM Disk 等存储后端）接收数据。这种方式的优点是应用无感、迁移过程完整；但代价是每次迁移需要传输数 GB 到数十 GB 的数据。</p>
 <ul>
 <li><strong>实现原理与底层机制</strong>：<br>从架构上看，虚拟机（VM）是一个包含了完整客户操作系统（Guest OS）和应用程序（App）的庞然大物。如上图所示，在企业级数据中心中，虚拟机的迁移往往伴随着底层的<strong>存储迁移（Storage vMotion）</strong>。<br>为了优化传输，现代 VM 迁移通常会将系统划分为 <strong>Base 层（只读的操作系统和基础环境镜像）</strong> 和 <strong>Overlay 层（运行时产生的读写状态数据）</strong>。迁移发生时，源端的 ESX Server 会在后台建立一条数据管道（图中的绿色通道），像搬运文件夹一样，将虚拟机的磁盘状态、CPU 寄存器以及成百上千兆的内存数据，平滑地复制到目标 ESX Server 的底层存储阵列中。</li>
 <li><strong>边缘车联网场景下的“致命缺陷”</strong>：<br>在拥有 10Gbps 甚至 100Gbps 光纤内网的中心云，迁移一个 VM 可能只需要几秒钟；但在车路云协同的边缘场景，这套方案会瞬间“水土不服”：<ol>
@@ -341,8 +344,9 @@
 </ol>
 </li>
 </ul>
-<h3 id="2-2-现代路线：基于容器的迁移（Container-Migration）"><a href="#2-2-现代路线：基于容器的迁移（Container-Migration）" class="headerlink" title="2.2 现代路线：基于容器的迁移（Container Migration）"></a>2.2 现代路线：基于容器的迁移（Container Migration）</h3><p>为了解决“体量”这个根本性问题，边缘计算顺理成章地全面转向了容器技术（Docker&#x2F;Kubernetes）。容器直接共享宿主机的 Linux 操作系统内核，剥离了沉重的 Guest OS，其体积通常可以压缩到百兆甚至十几兆级别，成为了边缘微服务的首选载体。</p>
+<h3 id="2-2-现代路线：基于容器的迁移（Container-Migration）"><a href="#2-2-现代路线：基于容器的迁移（Container-Migration）" class="headerlink" title="2.2 现代路线：基于容器的迁移（Container Migration）"></a>2.2 现代路线：基于容器的迁移（Container Migration）</h3><p>为了解决”体量”这个根本性问题，边缘计算顺理成章地全面转向了容器技术（Docker&#x2F;Kubernetes）。容器直接共享宿主机的 Linux 操作系统内核，剥离了沉重的 Guest OS，其体积通常可以压缩到百兆甚至十几兆级别，成为了边缘微服务的首选载体。容器迁移与 VM 迁移的对比如下图所示。</p>
 <p><img src="/images/17787564395828.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>图中左侧展示了 VM 迁移的整体路径——VM 包含完整的 Guest OS，因此每次迁移需要传输整个虚拟磁盘文件和完整的内存状态，数据量通常在 GB 级别。右侧展示了容器迁移的路径——容器仅包含应用程序及其依赖，共享宿主机的操作系统内核，传输的数据量通常只有 MB 级别。图中底部的箭头清晰标注了两者在传输数据量级上的巨大差距。</p>
 <ul>
 <li><strong>实现原理：进程级的空间穿梭</strong>：<br>容器的本质是 Linux 中被 Namespace 和 Cgroups 隔离的“特殊进程”。因此，容器的迁移不再需要像 VM 那样搬运整个系统，而是依赖 Linux 底层的高级系统调用以及 <strong>CRIU（Checkpoint&#x2F;Restore In Userspace）</strong> 等工具链。它能在用户态直接将运行中的进程瞬间“冻结”，将其内存数据、打开的文件描述符（FD）精确地序列化为二进制文件，并在目标机器上重新“解冻”运行。</li>
 <li><strong>面临的新挑战：轻量化带来的“后遗症”</strong>：<br>虽然容器体积小了，但如果在迁移时直接采用“简单粗暴”的内存与文件拷贝，会立刻撞上两堵高墙：<ol>
@@ -354,8 +358,9 @@
 <p>正是为了解决容器在跨节点迁移时遭遇的**“存储冗余”<strong>与</strong>“身份水土不服”**，学术界与工业界才不得不在容器底层的读写层和守护进程上，进行深度的“外科手术式”优化（即后续我们将探讨的三阶段 ID 映射与流水线传输技术）。</p>
 <hr>
 <h2 id="三、主流基石：Docker-分层存储与-CRIU-机制"><a href="#三、主流基石：Docker-分层存储与-CRIU-机制" class="headerlink" title="三、主流基石：Docker 分层存储与 CRIU 机制"></a>三、主流基石：Docker 分层存储与 CRIU 机制</h2><p>为了实现”数据轻量化、迁移时延缩小、无缝热迁移”的设计目标，目前业界最成熟的方案是融合 <strong>Docker 分层存储的巧妙利用</strong> 与 <strong>CRIU 机制的高效流水线</strong>（参考 <em>Lele Ma 等人在 TMC ‘19 发表的研究</em>）。</p>
-<h3 id="3-1-巧妙利用-Docker-分层存储：只传”增量”"><a href="#3-1-巧妙利用-Docker-分层存储：只传”增量”" class="headerlink" title="3.1 巧妙利用 Docker 分层存储：只传”增量”"></a>3.1 巧妙利用 Docker 分层存储：只传”增量”</h3><p>Docker 镜像底层采用的是 <strong>联合挂载（Union Mount，如 AUFS&#x2F;OverlayFS）</strong> 技术。它在用户视角表现为一个完整的文件目录，但底层其实分为严格的两部分：</p>
+<h3 id="3-1-巧妙利用-Docker-分层存储：只传”增量”"><a href="#3-1-巧妙利用-Docker-分层存储：只传”增量”" class="headerlink" title="3.1 巧妙利用 Docker 分层存储：只传”增量”"></a>3.1 巧妙利用 Docker 分层存储：只传”增量”</h3><p>Docker 镜像底层采用的是 <strong>联合挂载（Union Mount，如 AUFS&#x2F;OverlayFS）</strong> 技术。它在用户视角表现为一个完整的文件目录，但底层其实分为严格的两部分，如下图所示。</p>
 <p><img src="/images/17787533788986.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>图中展示了 Docker 镜像的分层结构。底部是多个只读的 Image Layers（图中灰色层），每个 Layer 代表 Dockerfile 中的一条指令（RUN、COPY 等），它们共同构成了基础镜像。顶部是唯一的可写 Container Layer（图中蓝色层），容器运行时的所有修改都发生在这里。迁移时，底部的只读层（目标节点从镜像仓库拉取）与顶部的读写层（跨节点传输增量数据）被区别对待——这是优化迁移数据量的核心思路。</p>
 <ul>
 <li><strong>Image Layers（基础镜像层 &#x2F; 只读层）</strong>：包含了系统文件、运行库、应用代码。这部分是只读的。**核心优化：**在边缘网络中，目标 MEC 服务器可以直接从中心 Docker Hub 或边缘镜像仓库拉取（Pre-Download）这一层，<strong>在热迁移发生时，完全不需要通过节点间链路传输镜像层，实现了极大的减负。</strong></li>
 <li><strong>Container Layer（容器读写层）</strong>：运行过程中产生的增量数据（如临时配置文件、SQLite 数据库、应用日志）。**核心优化：**迁移时真正需要跨节点传输的磁盘数据，只有这一层，通常大小仅为几 MB。</li>
@@ -454,8 +459,9 @@
 <p>当 CRIU 在目标端费尽千辛万苦、在几十毫秒内重建了容器和 Socket 描述符时，却面临一个残酷的物理现实：<strong>目标边缘服务器的 IP 地址变了</strong>。</p>
 <p>传统的 TCP 连接严格依赖”四元组”（源 IP、源端口、目的 IP、目的端口）来维持会话身份。四元组如同连接的”身份证”，一旦服务端 IP 变更，这个身份证就失效了——原有的 TCP 连接在操作系统层面被视为死亡，Socket 抛出异常，客户端必须重新发起三次握手。更严重的是，在车联网高峰期，如果大量车辆设备同时发现网络断开，它们会在同一时刻发起 TCP SYN 重连请求，引发严重的 <strong>“惊群效应（Thundering Herd Problem）”</strong> 和网络拥塞。TCP 的拥塞控制机制（Congestion Control）此时会强制介入，将拥塞窗口（CWND）重置为初始最小值，从慢启动（Slow Start）重新爬坡，导致重连握手延迟显著增加到数秒。而在这数秒内，高速行驶的车辆可能已经驶过数十米——这对于需要毫秒级响应的碰撞预警来说，是致命的延迟。</p>
 <p>为了解决这个网络断层的痛点，学术界从网络基础设施层、传输协议层、应用架构层三个维度，提出了三条截然不同的演进路线。</p>
-<h3 id="4-1-路线一：网络基础设施层——多路径-TCP（LSM-MPTCP）"><a href="#4-1-路线一：网络基础设施层——多路径-TCP（LSM-MPTCP）" class="headerlink" title="4.1 路线一：网络基础设施层——多路径 TCP（LSM-MPTCP）"></a>4.1 路线一：网络基础设施层——多路径 TCP（LSM-MPTCP）</h3><p><em>Franck Le 和 Erich M. Nahum 在 INFOCOM ‘19 提出的 LSM-MPTCP 方案</em> 试图从操作系统内核的 TCP 协议栈入手，从根本上解决 IP 变更导致的连接中断问题。</p>
+<h3 id="4-1-路线一：网络基础设施层——多路径-TCP（LSM-MPTCP）"><a href="#4-1-路线一：网络基础设施层——多路径-TCP（LSM-MPTCP）" class="headerlink" title="4.1 路线一：网络基础设施层——多路径 TCP（LSM-MPTCP）"></a>4.1 路线一：网络基础设施层——多路径 TCP（LSM-MPTCP）</h3><p><em>Franck Le 和 Erich M. Nahum 在 INFOCOM ‘19 提出的 LSM-MPTCP 方案</em> 试图从操作系统内核的 TCP 协议栈入手，从根本上解决 IP 变更导致的连接中断问题。MPTCP 的多路径传输架构如下图所示。</p>
 <p><img src="/images/17787536642329.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>图中展示了 MPTCP 的核心原理。左侧的客户端和右侧的服务端之间建立了一条逻辑的 MPTCP 连接（图中标记为 MPTCP），这条连接在底层分解为两条独立的 TCP 子流（Subflow 1 和 Subflow 2），各自经过不同的网络路径。在图中，Path 1 直接连接客户端与服务器，Path 2 经过一个中间路由器。当其中一条路径发生故障时，数据可以自动切换到另一条路径传输，实现了连接迁移的无缝切换。</p>
 <p><strong>核心机制：MPTCP 的多路径抽象</strong></p>
 <p><strong>MPTCP（Multi-Path TCP）</strong> 是对标准 TCP 的一次内核级扩展，核心思路是：允许一条逻辑的 TCP 连接同时使用多条物理网络路径（称为子流 Subflows），并在这些子流之间透明地进行调度和切换。</p>
 <p>MPTCP 对上下两层都保持透明：</p>
@@ -494,7 +500,10 @@
 <p><strong>但问题在于：QUIC 的连接迁移是为客户端移动设计的，不是为服务端移动设计的。</strong></p>
 <p><strong>不对称性（Asymmetry）问题：</strong></p>
 <p>QUIC 标准假设一个核心前提：<strong>客户端是移动的，服务端是静态的</strong>。因此协议栈对客户端 IP 的变化做了充分的容错处理。但在边缘服务迁移的场景中，<strong>移动的是服务端</strong>——容器从源节点搬到目标节点，服务端 IP 发生了变化。</p>
-<p>当标准 QUIC 协议栈检测到对端（在迁移场景中是客户端视角下的服务端）的物理地址发生变更时，出于网络安全考虑（防止地址欺骗攻击 Address Spoofing），状态机会强制触发两件”坏事”：<br><img src="/images/17787563892251.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>当标准 QUIC 协议栈检测到对端（在迁移场景中是客户端视角下的服务端）的物理地址发生变更时，出于网络安全考虑（防止地址欺骗攻击 Address Spoofing），状态机会强制触发两件”坏事”。下图直观展示了 TCP 和 UDP 在断网重连时的吞吐量差异。</p>
+<p><img src="/images/17787563892251.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>图中横轴是时间轴，纵轴是吞吐量。左图（TCP）在断网的瞬间（图中垂直虚线标记）吞吐量直接降为零，断网恢复后 TCP 需要经历漫长的”慢启动”爬坡期（图中曲线缓慢上升的部分）才能逐渐恢复到断网前的吞吐量水平。右图（UDP&#x2F;QUIC）在同样断网事件中也能观察到吞吐量下降，但恢复速度远快于 TCP——基于 QUIC 的方案借助 CID 机制和主动通知，在断网恢复后能迅速回到峰值水平。</p>
+<p>这两条吞吐量曲线恰好对应了标准 QUIC 路径验证期间的两个问题：</p>
 <ol>
 <li><p><strong>强制路径验证（Mandatory Path Validation）</strong>：协议栈必须通过多轮 RTT 的 <code>PATH_CHALLENGE</code> 与 <code>PATH_RESPONSE</code> 控制帧交互，来确认新端点的可达性。这引入了数百毫秒到数秒的等待时间。</p>
 </li>
